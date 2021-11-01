@@ -18,9 +18,7 @@ library(viridis)
 library(plyr)
 library(ggplot2)
 library(quantro)
-library(stringr)
 library(sva)
-library(stringr)
 
 # Get annotation
 annEpicObj <- getAnnotationObject(IlluminaHumanMethylationEPICanno.ilm10b2.hg19)
@@ -30,7 +28,7 @@ annEpic <- getAnnotation(annEpicObj)
 # Read in Data
 ###############
 # Data directory
-data.dir <- "~/rimod/Methylation/frontal_methylation_0818/"
+data.dir <- "~/dzne/rimod/data/methylation/rimod_frontal_methylation/"
 
 setwd(data.dir)
 
@@ -44,7 +42,7 @@ sid = which(samples == "A144/12")
 samples[sid] <- "14412"
 design$SampleID = samples
 # Merge with other design matrix
-md <- read.csv("~/rimod/files/FTD_Brain_corrected.csv")
+md <- read.csv("~/dzne/rimod/data/FTD_Brain_corrected.csv")
 
 #md <- md[md$REGION == "frontal",]
 sids <- as.character(md$SAMPLEID)
@@ -338,3 +336,17 @@ write.table(mapt.dmp.up, "MAPT_DMPs_UP.txt", quote=F, sep="\t", row.names=F, col
 write.table(mapt.dmp.down, "MAPT_DMPs_DOWN.txt", quote=F, sep="\t", row.names=F, col.names = F)
 write.table(grn.dmp.up, "GRN_DMPs_UP.txt", quote=F, sep="\t", row.names=F, col.names = F)
 write.table(grn.dmp.down, "GRN_DMPs_DOWN.txt", quote=F, sep="\t", row.names=F, col.names = F)
+
+###
+# Make a PCA
+###
+res = prcomp(t(mVals))
+res <- as.data.frame(res$x)
+group <- as.character(G)
+group[group == "NDC"] <- "control"
+group <- factor(group, levels=c("control", "FTD.C9", "FTD.GRN", "FTD.MAPT"))
+res$Group <- group
+ggplot(res, aes(x=PC1, y=PC2, color=Group)) + 
+  geom_point(size=3)
+
+ggsave("~/dzne/rimod/figures_ftd_dataset/Methylation_PCA_mVals.png", width=6, height=6)
