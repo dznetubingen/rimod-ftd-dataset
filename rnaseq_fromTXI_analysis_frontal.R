@@ -252,12 +252,35 @@ all.pca <- prcomp(t(rld.mat), retx = T)
 fviz_eig(all.pca)
 all.x <- as.data.frame(all.pca$x)
 all.x$Disease_code <- dc
-pca <- ggplot(all.x, aes(x=PC1, y=PC2, color=Disease_code)) +
+
+# Plot the PCA
+df = all.x
+df$Group = df$Disease_code
+dfGroup = gsub("_", "-", df[''])
+pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
   geom_point(size=3) 
 pca
 
 plot_dir = "~/dzne/rimod/figures_ftd_dataset/"
+ggsave(paste0(plot_dir, "RNAseq_PCA_without_outlier.png"), width=6, height=6, dpi=300)
 
-ggsave(paste0(plot_dir, "RNAseq_PCA_without_outlier.png"), width=6, height=6)
 
+# Calculate the row variance, then sort the matrix by variance and keep the top 5000 genes
+# Use the resulting matrix to calculate the PCA
+mat <- assay(rld)
+vars = rowVars(mat)
+mat <- mat[sort(vars, index.return = TRUE, decreasing = TRUE)$ix,]
 
+all.pca <- prcomp(t(mat), retx = T)
+importance <- as.data.frame(summary(all.pca)$importance)
+pc1_pct_variance <- round(importance$PC1[2], digits=2)
+pc2_pct_variance <- round(importance$PC2[2], digits=2)
+
+df <- data.frame(PC1 = all.pca$x[,1], PC2 = all.pca$x[,2], Group=as.character(rld$DISEASE.CODE ))
+pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
+  geom_point(size=3) + 
+  xlab(paste0("PC1 (", pc1_pct_variance, "%)")) +
+  ylab(paste0("PC2 (", pc2_pct_variance, "%)"))
+pca
+
+ggsave("~/dzne/rimod/figures_ftd_dataset/pca/RNAseq_PCA_without_outlier_v2.png", height=6, width=6, dpi=300)

@@ -13,6 +13,7 @@ library(stringr)
 library(viridis)
 library(pheatmap)
 library(ggplot2)
+library(factoextra)
 ### Hard-coded section
 script_name = "cage_cluster_deseq_analysis.R"
 date = Sys.Date()
@@ -160,12 +161,32 @@ write.table(rld.mat, paste("deseq_vst_values","_", current_time, ".txt", sep="")
 ## Plotting section ############
 
 ## PCA
-pca <- plotPCA(rld, intgroup = "DISEASE.CODE", ntop=5000)
-png(paste("pca_group_deseq_vst", "_", current_time, ".png", sep=""), width = 1200, height = 900)
+pca <- plotPCA(rld, intgroup = "DISEASE.CODE", ntop=5000, returnData = TRUE)
+pca$Group <- gsub("_", "-", pca$group)
+
+pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
+  geom_point(size=3) 
 pca
-dev.off()
-ggsave("CAGE_PCA_deseq_vct.png", height=6, width=6)
+ggsave("~/dzne/rimod/figures_ftd_dataset/pca/CAGE_PCA_deseq_vct.png", height=6, width=6, dpi=300)
 
+# Calculate the row variance, then sort the matrix by variance and keep the top 5000 genes
+# Use the resulting matrix to calculate the PCA
+n_top = 5000
+mat <- assay(rld)
+vars = rowVars(mat)
+mat <- mat[sort(vars, index.return = TRUE, decreasing = TRUE)$ix,]
+mat <- mat[1:n_top,]
 
+all.pca <- prcomp(t(mat), retx = T)
+importance <- as.data.frame(summary(all.pca)$importance)
+pc1_pct_variance <- round(importance$PC1[2], digits=2)
+pc2_pct_variance <- round(importance$PC2[2], digits=2)
 
+df <- data.frame(PC1 = all.pca$x[,1], PC2 = all.pca$x[,2], Group=as.character(rld$DISEASE.CODE ))
+pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
+  geom_point(size=3) + 
+  xlab(paste0("PC1 (", pc1_pct_variance, "%)")) +
+  ylab(paste0("PC2 (", pc2_pct_variance, "%)"))
+pca
 
+ggsave("~/dzne/rimod/figures_ftd_dataset/pca/CAGE_PCA_deseq_vst_v2.png", height=6, width=6, dpi=300)

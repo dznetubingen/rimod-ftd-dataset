@@ -119,7 +119,38 @@ assay(nb) <- x_noBatch
 
 plotPCA(nb, intgroup = "dc")
 png(paste0(plot_dir, "PCA_sRNA_rimod_frontal_vst_batchCorrected.png"), width=800, height=600)
-plotPCA(nb, intgroup = "dc")
+df <- plotPCA(nb, intgroup = "dc", returnData = TRUE)
 dev.off()
 
-ggsave("smRNAseq_PCA_VST_batchCorrected.png", width=6, height=6)
+df$Group <- gsub("[.]", "-", df$group)
+df$Group[df$Group == "NDC"] <- "control"
+pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
+  geom_point(size=3) 
+pca
+
+ggsave("smRNAseq_PCA_VST_batchCorrected.png", width=6, height=6, dpi=300)
+
+###
+# Create new PCA plot with variance explained in the axis labels
+mat <- assay(nb)
+vars = rowVars(mat)
+mat <- mat[sort(vars, index.return = TRUE, decreasing = TRUE)$ix,]
+
+group <- as.character(nb$dc)
+group <- gsub("[.]", "-", group)
+group[group == "NDC"] <- "control"
+group <- factor(group, levels=c("control", "FTD-C9", "FTD-MAPT", "FTD-GRN"))
+
+all.pca <- prcomp(t(mat), retx = T)
+importance <- as.data.frame(summary(all.pca)$importance)
+pc1_pct_variance <- round(importance$PC1[2], digits=2)
+pc2_pct_variance <- round(importance$PC2[2], digits=2)
+
+df <- data.frame(PC1 = all.pca$x[,1], PC2 = all.pca$x[,2], Group=group)
+pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
+  geom_point(size=3) + 
+  xlab(paste0("PC1 (", pc1_pct_variance, "%)")) +
+  ylab(paste0("PC2 (", pc2_pct_variance, "%)"))
+pca
+
+ggsave("~/dzne/rimod/figures_ftd_dataset/pca/smRNAseq_PCA_VST_batchCorrected_v2.png", height=6, width=6, dpi=300)

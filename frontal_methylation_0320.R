@@ -17,6 +17,7 @@ library(stringr)
 library(viridis)
 library(plyr)
 library(ggplot2)
+library(reshape2)
 library(quantro)
 library(sva)
 
@@ -86,9 +87,22 @@ barplot(colMeans(detP),  col=pal[factor(targets$Sample_Name)], las=2, cex.names 
 abline(h=0.01, col="red")
 dev.off()
 
+# Make nicer barplot
+cm_detp = data.frame(colMeans(detP))
+cm_detp$sample <- rownames(cm_detp)
+colnames(cm_detp) <- c("DetP", "Sample")
+
+p <- ggplot(data=cm_detp, aes(x=DetP, y=Sample)) + 
+  geom_bar(stat="identity") + 
+  theme_minimal() + 
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank()) 
+p
+ggsave("Samplewise_Detp_values.png", dpi=300)
+
+
 # Generate minfi QC report
 group <- as.character(targets$Group)
-qcReport(RGset, sampNames = targets$Sample_Name, sampGroups = group, pdf="QC_report.pdf")
+#qcReport(RGset, sampNames = targets$Sample_Name, sampGroups = group, pdf="QC_report.pdf")
 
 # remove samples with bad detection p-values
 keep <- colMeans(detP) < 0.01
@@ -108,9 +122,35 @@ mSetRaw <- preprocessRaw(RGset) # for plotting
 png("raw_density_plot.png", width=800, height=500)
 densityPlot(getBeta(mSetRaw), main ="Raw")
 dev.off()
+
 png("normalized_quantile_density_plot", width=800, height=500)
 densityPlot(getBeta(mSetFn), main="Funnorm normalized")
 dev.off()
+
+
+# Make ggplot plots from normalization
+
+beta_raw = melt(getBeta(mSetRaw))
+beta_norm = melt(getBeta(mSetFn))
+
+p <- ggplot(beta_raw, aes(x=value, color=Var2)) + 
+  geom_density() +
+  theme_bw() +
+  theme(legend.position = "none") + 
+  xlab("Beta Value")
+p
+ggsave("Beta_values_raw.png", dpi=300)
+
+p <- ggplot(beta_norm, aes(x=value, color=Var2)) + 
+  geom_density() +
+  theme_bw() +
+  theme(legend.position = "none") + 
+  xlab("Beta Value")
+p
+ggsave("Beta_values_norm.png", dpi=300)
+
+
+
 #======================================================#
 
 #=== Filtering ===#
@@ -340,13 +380,22 @@ write.table(grn.dmp.down, "GRN_DMPs_DOWN.txt", quote=F, sep="\t", row.names=F, c
 ###
 # Make a PCA
 ###
-res = prcomp(t(mVals))
-res <- as.data.frame(res$x)
+res_pca = prcomp(t(mVals))
+res <- as.data.frame(res_pca$x)
+importance <- as.data.frame(summary(res_pca)$importance)
+pc1_pct_variance <- round(importance$PC1[2], digits=2)
+pc2_pct_variance <- round(importance$PC2[2], digits=2)
+
 group <- as.character(G)
 group[group == "NDC"] <- "control"
-group <- factor(group, levels=c("control", "FTD.C9", "FTD.GRN", "FTD.MAPT"))
-res$Group <- group
-ggplot(res, aes(x=PC1, y=PC2, color=Group)) + 
-  geom_point(size=3)
+group <- gsub("[.]", "-", group)
+group <- factor(group, levels=c("control", "FTD-C9", "FTD-GRN", "FTD-MAPT"))
+res$Group <- gsub("[.]", "-", group)
+p <- ggplot(res, aes(x=PC1, y=PC2, color=Group)) + 
+  geom_point(size=3) +
+  xlab(paste0("PC1 (", pc1_pct_variance, "%)")) +
+  ylab(paste0("PC2 (", pc2_pct_variance, "%)"))
+p
 
-ggsave("~/dzne/rimod/figures_ftd_dataset/Methylation_PCA_mVals.png", width=6, height=6)
+
+ggsave("~/dzne/rimod/figures_ftd_dataset/pca/Methylation_PCA_mVals_v2.png", width=6, height=6, dpi = 300)
