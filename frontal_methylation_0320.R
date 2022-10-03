@@ -99,10 +99,14 @@ p <- ggplot(data=cm_detp, aes(x=DetP, y=Sample)) +
 p
 ggsave("Samplewise_Detp_values.png", dpi=300)
 
-
+# Save a table as well
+md <- targets
+md$Sample <- paste(as.character(md$Slide), as.character(md$Array), sep="_")
+cm_detp <- merge(cm_detp, md, by="Sample")
+write.table(cm_detp, "~/dzne/rimod/data/methylation/detection_pvalues.txt", sep="\t", quote=F)
 # Generate minfi QC report
 group <- as.character(targets$Group)
-#qcReport(RGset, sampNames = targets$Sample_Name, sampGroups = group, pdf="QC_report.pdf")
+qcReport(RGset, sampNames = targets$Sample_Name, sampGroups = group, pdf="QC_report.pdf")
 
 # remove samples with bad detection p-values
 keep <- colMeans(detP) < 0.01

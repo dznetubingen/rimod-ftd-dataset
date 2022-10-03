@@ -1,5 +1,12 @@
 library(stringr)
 
+# Utility functions
+split_and_pad <- function(x){
+  x <- str_split(x, pattern="_", simplify = T)[,1]
+  x <- str_pad(x, width=5, side="left", pad="0")
+  return(x)
+}
+
 #####################
 # Collect mutational information
 #####################
@@ -87,4 +94,84 @@ cols.remapped <- as.character(met.map$new_id)
 colnames(met) <- cols.remapped
 
 write.table(met, paste0(save_path, "RiMod_methylation_mValues.txt"), sep="\t", quote=F)
+
+
+###############
+# Collect mapping QC information
+###############
+
+# RNA-seq QC stats
+rna.qc <- read.table("~/dzne/rimod/data/rnaseq/multiqc_data/multiqc_general_stats.txt", sep="\t", header=T)
+rna.salmon <- read.table("~/dzne/rimod/data/rnaseq/results_salmon/multiqc_data/multiqc_general_stats.txt", sep="\t", header=T)
+rna.star <- read.table("~/dzne/rimod/data/rnaseq/multiqc_data/multiqc_star.txt", sep="\t", header=T)
+
+# remove duplicates
+rna.qc$Sample <- split_and_pad(as.character(rna.qc$Sample))
+rna.qc <- rna.qc[!duplicated(rna.qc$Sample),]
+
+rna.star$Sample <- gsub("_1", "", rna.star$Sample)
+rna.star$Sample <- split_and_pad(as.character(rna.star$Sample))
+rna.star <- rna.star[, c(1,2)]
+colnames(rna.star)[2] <- "RNAseq_total_sequences"
+rna.star$Sample[rna.star$Sample == "A1442"] <- "0A144"
+
+rna.salmon$Sample <- split_and_pad(rna.salmon$Sample)
+rna.stats = merge(rna.qc, rna.salmon, by.x = "Sample", by.y="Sample")
+rna.stats <- rna.stats[, c(1, 5, 6, 7, 8, 9)]
+colnames(rna.stats) <- c("Sample", 
+                         "RNAseq_STAR_uniquely_mapped_percent", 
+                         "RNAseq_STAR_uniquely_mapped", 
+                         "RNAseq_percent_trimmed", 
+                         "RNAseq_Salmon_num_mapped", 
+                         "RNAseq_Salomn_percent_mapped")
+
+rna.stats = merge(rna.stats, rna.star, on="Sample")
+
+# smRNA-seq QC stats
+mirna1 <- read.table("~/dzne/rimod/data/smrnaseq/multiqc_general_stats_2018.txt", sep="\t", header=T)
+mirna2 <- read.table("~/dzne/rimod/data/smrnaseq/multiqc_general_stats_2019.txt", sep="\t", header=T)
+colnames(mirna2) <- gsub(".star", "", gsub(".fastqc", "", gsub(".bowtie_1", "", gsub(".htseq_count", "", colnames(mirna2)))))
+mirna2 <- mirna2[, order(match(colnames(mirna2), colnames(mirna1)))]
+mirna <- rbind(mirna1, mirna2)
+# remove unused rows
+mirna <- mirna[!grepl("--mirna", mirna$Sample),]
+mirna <- mirna[!grepl("--srna", mirna$Sample),]
+mirna <- mirna[!grepl("-trimmed", mirna$Sample),]
+mirna <- mirna[!grepl("_allspeciesCounts", mirna$Sample),]
+mirna <- mirna[!grepl("std", mirna$Sample),]
+# format sample names
+samples <- as.character(mirna$Sample)
+samples <- gsub("RNAomeTb", "", gsub("final_5bp_trimmed_sample_", "", samples))
+samples[samples == "110140NDCGFM_mm_smallrna_sr_Farah_D_3"] <- "11040"
+samples <- str_sub(samples, 1, 5)
+mirna$Sample <- samples
+mirna <- mirna[mirna$Sample %in% mapping$old_id,]
+mirna <- mirna[, c(1, 2, 3)]
+colnames(mirna) <- c("Sample",
+                     "smRNAseq_STAR_uniquely_mapped_percent",
+                     "smRNAseq_STAR_uniquely_mapped")
+
+# CAGE-seq QC stats
+cage <- read.csv("~/dzne/rimod/data/FTD_Brain_corrected.csv")
+cage <- cage[cage$REGION == "frontal",]
+cage <- cage[, c(4, 11, 12, 13)]
+samples <- as.character(cage$SAMPLEID)
+samples[samples == "A144_12"] <- "0A144"
+samples <- str_pad(samples, width=5, side="left", pad="0")
+cage$SAMPLEID <- samples
+cage <- cage[cage$SAMPLEID %in% mapping$old_id,]
+colnames(cage) <- c("Sample", "CAGEseq_total_sequences", "CAGEseq_STAR_uniquely_mapped", "CAGEseq_STAR_uniquely_mapped_percent")
+
+# Collection methylation QC info
+met <- read.table("~/dzne/rimod/data/methylation/detection_pvalues.txt", sep="\t", header=T)
+
+# Merge all QC tables together
+qc <- merge(rna.stats, mirna, by="Sample", all=TRUE)
+qc <- merge(qc, cage, on="Sample", all=TRUE)
+
+qc <- merge(qc, mapping, by.x="Sample", by.y="old_id")
+rownames(qc) <- qc$new_id
+qc$Sample <- qc$new_id
+qc <- qc[, c(-13, -14)]
+write.table(qc, "~/dzne/rimod/rimod_ftd_sequencing_qc_statistics.txt", sep="\t", row.names = F, quote=F)
 

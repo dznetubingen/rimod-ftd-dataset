@@ -46,7 +46,6 @@ md$sample <- str_split(md$GIVENSAMPLENAME, pattern="_", simplify = T)[,1]
 md <- md[md$sample %in% fracs$sample,]
 md <- md[match(fracs$sample, md$sample),]
 fracs$group <- as.character(md$DISEASE.CODE)
-#fracs$group[as.character(md$GENE) == "P301L"] <- "MAPT-P301L"
 
 # remove sporadic
 fracs <- fracs[!fracs$group == "Sporadic-TDP",]
@@ -62,22 +61,16 @@ fracs <- fracs[, -1]
 mapt <- fracs[fracs$group == "FTD-MAPT",]
 grn <- fracs[fracs$group == "FTD-GRN",]
 c9 <- fracs[fracs$group == "FTD-C9",]
-#mp3 <- fracs[fracs$group == "MAPT-P301L",]
 
 control <- fracs[fracs$group == "control",]
 mapt <- mapt[, -ncol(mapt)]
 mapt <- apply(mapt, 2, mean_fun)
-#mp3 <- mp3[, -ncol(mp3)]
-#mp3 <- apply(mp3, 2, mean_fun)
 grn <- grn[, -ncol(grn)]
 grn <- apply(grn, 2, mean_fun)
 control <- control[, -ncol(control)]
 control <- apply(control, 2, mean_fun)
 c9 <- c9[, -ncol(c9)]
 c9 <- apply(c9, 2, mean_fun)
-
-
-
 
 # MAPT
 mapt_list <- c()
@@ -88,17 +81,6 @@ for (i in 1:length(control)) {
   print(pct)
   mapt_list <- c(mapt_list, pct)
 }
-
-# MAPT-P301L
-# mp3_list <- c()
-# for (i in 1:length(control)) {
-#   ct.mean <- control[i]
-#   diff <- mp3[i] - ct.mean
-#   pct <- diff / ct.mean
-#   print(pct)
-#   mp3_list <- c(mp3_list, pct)
-# }
-
 
 # GRN
 grn_list <- c()
@@ -123,7 +105,6 @@ for (i in 1:length(control)) {
 # make data frame
 grn <- t(data.frame(grn_list))
 mapt <- t(data.frame(mapt_list))
-#mp3 <- t(data.frame(mp3_list))
 c9 <- t(data.frame(c9_list))
 df <- data.frame(rbind(mapt, grn, c9))
 df$group <- c("MAPT", "GRN", "C9ORF72")
@@ -160,7 +141,7 @@ ggplot(cells, aes(x=Neurons, y=Fraction, color=Celltype)) +
 #########
 # Calculate significance in changes
 #########
-mapt <- fracs[fracs$group %in% c("FTD-MAPT","MAPT-P301L"),]
+mapt <- fracs[fracs$group == "FTD-MAPT",]
 grn <- fracs[fracs$group == "FTD-GRN",]
 c9 <- fracs[fracs$group == "FTD-C9",]
 control <- fracs[fracs$group == "control",]
@@ -190,7 +171,7 @@ for (ct in celltypes) {
 }
 
 pval.df <- data.frame("FTD-MAPT" = mapt_pvals, "FTD-GRN" = grn_pvals, "FTD-C9orf72" = c9_pvals, "Celltype" = celltypes)
-write.table(pval.df, "~/rimod/RNAseq/analysis/deconvolution/cell_type_difference_testing.txt", sep="\t", quote=F, row.names = F)
+write.table(pval.df, "~/dzne/rimod/results/rnaseq/cell_type_difference_testing.txt", sep="\t", quote=F, row.names = F)
 
 # Generate heatmap of p-values
 ct <- pval.df$Celltype
@@ -230,3 +211,73 @@ ggplot(df, aes(fill=Celltype, y=Fraction, x=Sample)) +
 
 ggsave(paste0(plot_dir, "cell_composition_stacked_barplot.png"), width=8, height=6)
 #===================================================================#
+
+######
+# Additional comparison
+# Perform ANOVA with post-hoc Tukey HSD test
+######
+
+exn.aov <- aov(ExNeurons ~ group, fracs)
+res.exn <- TukeyHSD(exn.aov)
+res.exn.df <- as.data.frame(res.exn$group)
+res.exn.df$celltype <- "ExNeurons"
+res.exn.df$comparison <- rownames(res.exn.df)
+
+olig.aov <- aov(Oligodendrocytes ~ group, fracs)
+res.olig <- TukeyHSD(olig.aov)
+res.olig.df <- as.data.frame(res.olig$group)
+res.olig.df$celltype <- "Oligodendrocytes"
+res.olig.df$comparison <- rownames(res.olig.df)
+
+endo.aov <- aov(Endothelial ~ group, fracs)
+res.endo <- TukeyHSD(endo.aov)
+res.endo.df <- as.data.frame(res.endo$group)
+res.endo.df$celltype <- "Endothelial"
+res.endo.df$comparison <- rownames(res.endo.df)
+
+micro.aov <- aov(Microglia ~ group, fracs)
+res.micro <- TukeyHSD(micro.aov)
+res.micro.df <- as.data.frame(res.micro$group)
+res.micro.df$celltype <- "Microglia"
+res.micro.df$comparison <- rownames(res.micro.df)
+
+astro.aov <- aov(Astrocytes ~ group, fracs)
+res.astro <- TukeyHSD(astro.aov)
+res.astro.df <- as.data.frame(res.astro$group)
+res.astro.df$celltype <- "Astrocytes"
+res.astro.df$comparison <- rownames(res.astro.df)
+
+inn.aov <- aov(InNeurons ~ group, fracs)
+res.inn <- TukeyHSD(inn.aov)
+res.inn.df <- as.data.frame(res.inn$group)
+res.inn.df$celltype <- "InNeurons"
+res.inn.df$comparison <- rownames(res.inn.df)
+
+opc.aov <- aov(OPC ~ group, fracs)
+res.opc <- TukeyHSD(opc.aov)
+res.opc.df <- as.data.frame(res.opc$group)
+res.opc.df$celltype <- "OPC"
+res.opc.df$comparison <- rownames(res.opc.df)
+
+res.df <- rbind(res.exn.df, res.endo.df, res.micro.df, res.astro.df, res.inn.df, res.opc.df, res.olig.df)
+res.df <- res.df[res.df$comparison %in% c("FTD-C9-control", "FTD-GRN-control", "FTD-MAPT-control"),]
+
+mdf <- melt(res.df)
+mdf <- mdf[mdf$variable == "p adj",]
+mdf$negLogPValue <- -log10(mdf$value)
+mdf$comparison <- factor(mdf$comparison, levels=c("FTD-MAPT-control", "FTD-GRN-control", "FTD-C9-control"))
+
+mypal <- c("#7570B3", "#db6e1a", "#19943d")
+p <- ggplot(data=mdf, aes(x=celltype, y=negLogPValue, fill=comparison)) + 
+  geom_bar(stat="identity", position = "dodge") +
+  geom_hline(yintercept=1.3, linetype="dashed", color="red") + 
+  theme_minimal() +
+  xlab("Cell type") + 
+  ylab("-log10 adj. P-value") +
+  scale_fill_manual(values=mypal)
+p
+ggsave("~/dzne/rimod/figures_ftd_dataset/deconvolution_tukey_results.png", width = 5, height= 5)
+
+write.table(res.df, "~/dzne/rimod/results/rnaseq/deconvolution/anova_tukey_test_results.txt", sep="\t", quote=F)
+
+
