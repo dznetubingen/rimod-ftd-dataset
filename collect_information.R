@@ -16,6 +16,11 @@ mut <- read.csv("~/dzne/rimod/data/FTD_Brain_corrected.csv")
 
 md <- merge(md, mapping, by.x="RimodID", by.y="new_id")
 
+
+# Remove spoardic samples
+md <- md[md$DiseaseCode %in% c("control", "FTD-C9", "FTD-MAPT", "FTD-GRN"),]
+rimod_samples <- as.character(md$RimodID)
+
 samples <- as.character(mut$SAMPLEID)
 samples <- str_pad(samples, width=5, side="left", pad="0")
 samples[samples == "A144_12"] <- "0A144"
@@ -50,11 +55,14 @@ rna.map <- rna.map[order(match(rna.map$old_id, cols)),]
 cols.remapped <- as.character(rna.map$new_id)
 colnames(rna) <- cols.remapped
 
+# filter sporadic samples
+rna <- rna[, colnames(rna) %in% rimod_samples]
+
 write.table(rna, paste0(save_path, "RiMod_RNAseq_lengthScaledTPM_counts.txt"), sep="\t", quote=F)
 
 # format smRNA-seq sample names
 mirna <- read.table("~/dzne/rimod/data/smrnaseq/rimod_human_frontal_smRNAseq_counts.txt", sep="\t", header=T, row.names=1)
-
+test <- read.table("~/dzne/rimod/data/smrnaseq/rimod_human_frontal_smRNAseq_metadata.txt", sep="\t", header=T)
 cols <- colnames(mirna)
 cols <- gsub("X", "", cols)
 cols <- gsub("sample_", "", cols)
@@ -63,6 +71,9 @@ mirna.map <- mapping[mapping$old_id %in% cols,]
 mirna.map <- mirna.map[order(match(mirna.map$old_id, cols)),]
 cols.remapped <- as.character(mirna.map$new_id)
 colnames(mirna) <- cols.remapped
+
+# remove sporadic
+mirna <- mirna[, colnames(mirna) %in% rimod_samples]
 
 write.table(mirna, paste0(save_path, "RiMod_smRNAseq_counts.txt"), sep="\t", quote=F)
 
@@ -79,6 +90,9 @@ cage.map <- cage.map[order(match(cage.map$old_id, cols)),]
 cols.remapped <- as.character(cage.map$new_id)
 colnames(cage) <- cols.remapped
 
+# remove sporadic samples
+cage <- cage[, colnames(cage) %in% rimod_samples]
+
 write.table(cage, paste0(save_path, "RiMod_CAGEseq_cluster_counts.txt"), sep="\t", quote=F)
 
 # format methylation data
@@ -92,6 +106,9 @@ met.map <- mapping[mapping$old_id %in% cols,]
 met.map <- met.map[order(match(met.map$old_id, cols)),]
 cols.remapped <- as.character(met.map$new_id)
 colnames(met) <- cols.remapped
+
+# remove spoardic samples
+met <- met[, colnames(met) %in% rimod_samples]
 
 write.table(met, paste0(save_path, "RiMod_methylation_mValues.txt"), sep="\t", quote=F)
 
@@ -173,5 +190,10 @@ qc <- merge(qc, mapping, by.x="Sample", by.y="old_id")
 rownames(qc) <- qc$new_id
 qc$Sample <- qc$new_id
 qc <- qc[, c(-13, -14)]
+
+# remove sporadic samples
+qc <- qc[rownames(qc) %in% rimod_samples,]
+
 write.table(qc, "~/dzne/rimod/rimod_ftd_sequencing_qc_statistics.txt", sep="\t", row.names = F, quote=F)
+
 

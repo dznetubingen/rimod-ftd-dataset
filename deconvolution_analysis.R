@@ -109,15 +109,17 @@ c9 <- t(data.frame(c9_list))
 df <- data.frame(rbind(mapt, grn, c9))
 df$group <- c("MAPT", "GRN", "C9ORF72")
 df <- melt(df)
-
+cell_type_order = levels(df$variable)
 # Generate the plots
 #mypal_maptSplit <- c("#7570B3", "#db6e1a", "#67e08a", "#19943d")
-mypal <- c("#7570B3", "#db6e1a", "#19943d")
+mypal <- c("#3d9444", "#db6e1a", "#19943d")
+cbPalette <- c("#56B4E9", "#3d9444","#b74ce0")
+df$group <- factor(as.character(df$group), levels = c("GRN", "C9ORF72","MAPT"))
 ggplot(data=df, aes(x=variable, y=value, fill=group)) +
   geom_bar(stat='identity', position = position_dodge()) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, size = 12)) +
-  scale_fill_manual(values = mypal) + 
+  theme(axis.text.x = element_text(angle = 30, size = 12)) +
+  scale_fill_manual(values = cbPalette) + 
   xlab("") + 
   ylab("Percentage difference to control") + 
   ggtitle("Cell Composition Change in Disease Groups")
@@ -265,18 +267,19 @@ res.df <- res.df[res.df$comparison %in% c("FTD-C9-control", "FTD-GRN-control", "
 mdf <- melt(res.df)
 mdf <- mdf[mdf$variable == "p adj",]
 mdf$negLogPValue <- -log10(mdf$value)
-mdf$comparison <- factor(mdf$comparison, levels=c("FTD-MAPT-control", "FTD-GRN-control", "FTD-C9-control"))
-
-mypal <- c("#7570B3", "#db6e1a", "#19943d")
+mdf$comparison <- factor(mdf$comparison, levels=c("FTD-GRN-control", "FTD-C9-control", "FTD-MAPT-control"))
+mdf$celltype <- factor(as.character(mdf$celltype), levels=cell_type_order)
+cbPalette <- c("#56B4E9", "#3d9444","#b74ce0")
 p <- ggplot(data=mdf, aes(x=celltype, y=negLogPValue, fill=comparison)) + 
   geom_bar(stat="identity", position = "dodge") +
   geom_hline(yintercept=1.3, linetype="dashed", color="red") + 
   theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, size = 12)) +
   xlab("Cell type") + 
   ylab("-log10 adj. P-value") +
-  scale_fill_manual(values=mypal)
+  scale_fill_manual(values=cbPalette)
 p
-ggsave("~/dzne/rimod/figures_ftd_dataset/deconvolution_tukey_results.png", width = 5, height= 5)
+ggsave("~/dzne/rimod/figures_ftd_dataset/deconvolution_tukey_results.png", width = 8, height= 6)
 
 write.table(res.df, "~/dzne/rimod/results/rnaseq/deconvolution/anova_tukey_test_results.txt", sep="\t", quote=F)
 
